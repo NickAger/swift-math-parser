@@ -4,6 +4,16 @@
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2Fbradhowes%2Fswift-math-parser%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/bradhowes/swift-math-parser)
 [![License: MIT](https://img.shields.io/badge/License-MIT-A31F34.svg)](https://opensource.org/licenses/MIT)
 
+# forked from bradhowes/swift-math-parser
+
+Changes:
+
+* Removed `enableImpliedMultiplication` from `MathParser` initializer (wasn't required for my usecase)
+* Only use dictionaries for custom variables and functions (again, wasn't required for my usecase)
+* Added as assignment operator `=` to set custom variables
+* Started work to add `if` and bollean logic to the parser (not complete)
+
+
 # swift-math-parser
 
 Basic math expression parser built with [Point•Free's](https://www.pointfree.co/)

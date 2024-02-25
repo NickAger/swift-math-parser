@@ -1,16 +1,28 @@
-// Copyright © 2022 Brad Howes. All rights reserved.
+// `appending` helper methods for dictionaries
 
 public extension Dictionary where Key == String, Value == Double {
-  /// Obtain a symbol mapping function for the dictionary
-  @inlinable var producer: MathParser.VariableMap { { self[$0] } }
+    func appending(_ other: [String: Double]?) -> [String: Double] {
+        guard let other = other else { return self }
+        var result = self
+        for (key, value) in other { result[key] = value }
+        return result
+    }
 }
 
 public extension Dictionary where Key == String, Value == (Double) -> Double {
-  /// Obtain a unary function mapping function for the dictionary
-  @inlinable var producer: MathParser.UnaryFunctionMap { { self[$0] } }
+    func appending(_ other: [String: (Double) -> Double]?) -> [String: (Double) -> Double] {
+        guard let other = other else { return self }
+        var result = self
+        for (key, value) in other { result[key] = value }
+        return result
+    }
 }
 
 public extension Dictionary where Key == String, Value == (Double, Double) -> Double {
-  /// Obtain a binary function mapping function for the dictionary
-  @inlinable var producer: MathParser.BinaryFunctionMap { { self[$0] } }
+    func appending(_ other: [String: (Double, Double) -> Double]?) -> [String: (Double, Double) -> Double] {
+        guard let other = other else { return self }
+        var result = self
+        for (key, value) in other { result[key] = value }
+        return result
+    }
 }

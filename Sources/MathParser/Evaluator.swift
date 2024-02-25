@@ -1,4 +1,5 @@
 // Copyright © 2021 Brad Howes. All rights reserved.
+// Modified by Nick Ager
 
 /**
  Evaluator of parsed tokens.
@@ -15,9 +16,6 @@ public struct Evaluator {
   /// The parsed token chain that can be evaluated
   @usableFromInline let token: Token
 
-  /// True if using implied multiplication to resolve symbols
-  @usableFromInline let usingImpliedMultiplication: Bool
-
   /// Obtain unresolved names of symbols for variables and functions
   public var unresolved: Unresolved { token.unresolved }
 
@@ -25,11 +23,9 @@ public struct Evaluator {
    Construct new evaluator. This is constructed and returned by `MathParser.parse`.
 
    - parameter token: the token to evaluate
-   - parameter usingImpliedMultiplication: if true then try to decompose symbols into pairs that are multiplied together
    */
-  init(token: Token, usingImpliedMultiplication: Bool = false) {
+    init(token: Token) {
     self.token = token
-    self.usingImpliedMultiplication = usingImpliedMultiplication
   }
 }
 
@@ -50,13 +46,12 @@ public extension Evaluator {
    - returns: Double value that is NaN when evaluation cannot finish due to unresolved symbol
    */
   @inlinable
-  func eval(variables: MathParser.VariableMap? = nil,
-            unaryFunctions: MathParser.UnaryFunctionMap? = nil,
-            binaryFunctions: MathParser.BinaryFunctionMap? = nil) -> Double {
-    (try? token.eval(state: .init(variables: variables ?? MathParser.defaultVariables.producer,
-                                  unaryFunctions: unaryFunctions ?? MathParser.defaultUnaryFunctions.producer,
-                                  binaryFunctions: binaryFunctions ?? MathParser.defaultBinaryFunctions.producer,
-                                  usingImpliedMultiplication: usingImpliedMultiplication))) ?? .nan
+    func eval(variables: MathParser.VariableDict? = nil,
+              unaryFunctions: MathParser.UnaryFunctionDict? = nil,
+              binaryFunctions: MathParser.BinaryFunctionDict? = nil) -> Double {
+        (try? token.eval(state: .init(variables: MathParser.defaultVariables.appending(variables),
+                                      unaryFunctions: MathParser.defaultUnaryFunctions.appending(unaryFunctions),
+                                      binaryFunctions: MathParser.defaultBinaryFunctions.appending(binaryFunctions)))) ?? .nan
   }
 
   /**
@@ -72,15 +67,14 @@ public extension Evaluator {
    - returns: `Result` enum which hold value on success or error description on failure.
    */
   @inlinable
-  func evalResult(variables: MathParser.VariableMap? = nil,
-                  unaryFunctions: MathParser.UnaryFunctionMap? = nil,
-                  binaryFunctions: MathParser.BinaryFunctionMap? = nil) -> Result {
+    func evalResult(variables: MathParser.VariableDict? = nil,
+                    unaryFunctions: MathParser.UnaryFunctionDict? = nil,
+                    binaryFunctions: MathParser.BinaryFunctionDict? = nil) -> Result {
     do {
       let result = try token.eval(
-        state: .init(variables: variables ?? MathParser.defaultVariables.producer,
-                     unaryFunctions: unaryFunctions ?? MathParser.defaultUnaryFunctions.producer,
-                     binaryFunctions: binaryFunctions ?? MathParser.defaultBinaryFunctions.producer,
-                     usingImpliedMultiplication: usingImpliedMultiplication))
+                state: .init(variables: MathParser.defaultVariables.appending(variables),
+                             unaryFunctions: MathParser.defaultUnaryFunctions.appending(unaryFunctions),
+                             binaryFunctions: MathParser.defaultBinaryFunctions.appending(binaryFunctions)))
       return .success(result)
     } catch {
       // swiftlint:disable force_cast
@@ -97,7 +91,7 @@ public extension Evaluator {
    */
   @inlinable
   func eval(_ name: String, value: Double) -> Double {
-    eval(variables: {$0 == name ? value : nil})
+        eval(variables: [name : value])
   }
 
   /**
@@ -108,7 +102,7 @@ public extension Evaluator {
    */
   @inlinable
   func evalResult(_ name: String, value: Double) -> Result {
-    evalResult(variables: {$0 == name ? value : nil})
+        evalResult(variables: [name : value])
   }
 }
 
@@ -118,37 +112,33 @@ public extension Evaluator {
 @usableFromInline
 struct EvalState {
   /// Map to use any unresolved symbols from parse
-  @usableFromInline let variables: MathParser.VariableMap?
+    @usableFromInline let variables: MathParser.VariableDict
   /// Map to use any unresolved unary functions from parse
-  @usableFromInline let unaryFunctions: MathParser.UnaryFunctionMap?
+    @usableFromInline let unaryFunctions: MathParser.UnaryFunctionDict
   /// Map to use any unresolved binary functions from parse
-  @usableFromInline let binaryFunctions: MathParser.BinaryFunctionMap?
-  /// True if using implied multiplication to resolve symbols
-  @usableFromInline let usingImpliedMultiplication: Bool
+    @usableFromInline let binaryFunctions: MathParser.BinaryFunctionDict
 
   @inlinable
   public func findVariable(name: Substring) -> Double? {
-    self.variables?(String(name)) ?? MathParser.defaultVariables.producer(String(name))
+        self.variables[String(name)]
   }
 
   @inlinable
   public func findUnary(name: Substring) -> MathParser.UnaryFunction? {
-    self.unaryFunctions?(String(name)) ?? MathParser.defaultUnaryFunctions.producer(String(name))
+        self.unaryFunctions[String(name)]
   }
 
   @inlinable
   public func findBinary(name: Substring) -> MathParser.BinaryFunction? {
-    self.binaryFunctions?(String(name)) ?? MathParser.defaultBinaryFunctions.producer(String(name))
+        self.binaryFunctions[String(name)]
   }
 
   @usableFromInline
-  init(variables: MathParser.VariableMap?,
-       unaryFunctions: MathParser.UnaryFunctionMap?,
-       binaryFunctions: MathParser.BinaryFunctionMap?,
-       usingImpliedMultiplication: Bool) {
-    self.variables = variables
-    self.unaryFunctions = unaryFunctions
-    self.binaryFunctions = binaryFunctions
-    self.usingImpliedMultiplication = usingImpliedMultiplication
+    init(variables: MathParser.VariableDict?,
+         unaryFunctions: MathParser.UnaryFunctionDict?,
+         binaryFunctions: MathParser.BinaryFunctionDict?) {
+        self.variables = MathParser.defaultVariables.appending(variables)
+        self.unaryFunctions = MathParser.defaultUnaryFunctions.appending(unaryFunctions)
+        self.binaryFunctions = MathParser.defaultBinaryFunctions.appending(binaryFunctions)
   }
 }

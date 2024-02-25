@@ -1,4 +1,5 @@
 // Copyright © 2023 Brad Howes. All rights reserved.
+// Modified by Nick Ager 2024
 
 import Parsing
 
@@ -19,7 +20,6 @@ struct InfixOperation: Parser {
   private let associativity: Associativity
   private let `operator`: any TokenReducerParser
   private let operand: any TokenParser
-  private let impliedOperation: TokenReducer?
   public var logging: Bool
 
   /**
@@ -30,20 +30,17 @@ struct InfixOperation: Parser {
    - parameter operator: the parser that recognizes valid operators at a certain precedence level
    - parameter operand: the parser for values to provide to the operator that may include operations at a higher
    precedence level
-   - parameter impliedOperation: optional ``TokenReducer`` that if present will be used if there is no operator token
    */
   @inlinable
   init(name: String,
        associativity: Associativity,
        operator: any TokenReducerParser,
        operand: any TokenParser,
-       implied: TokenReducer? = nil,
        logging: Bool = false) {
     self.name = name
     self.associativity = associativity
     self.operator = `operator`
     self.operand = operand
-    self.impliedOperation = implied
     self.logging = logging
   }
 }
@@ -67,7 +64,7 @@ extension InfixOperation {
       log("got", lhs: lhs)
       var rest = input
       while true {
-        if let operation = (try? self.operator.parse(&input)) ?? impliedOperation {
+         if let operation = (try? self.operator.parse(&input)) {
           log("got op")
           do {
             let rhs = try self.operand.parse(&input)

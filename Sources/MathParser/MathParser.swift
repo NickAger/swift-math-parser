@@ -1,4 +1,5 @@
 // Copyright © 2023 Brad Howes. All rights reserved.
+// Modified by Nick Ager 2024
 
 import Parsing
 import Foundation
@@ -26,15 +27,15 @@ final public class MathParser {
   /// Type definition for a reduction of two `Double` values to one such as by a 2-argument function.
   public typealias BinaryFunction = (Double, Double) -> Double
   /// Mapping of variable names to an optional Double.
-  public typealias VariableMap = (String) -> Double?
+    // public typealias VariableMap = (String) -> Double?
   /// Dictionary of variable names and their values.
   public typealias VariableDict = [String: Double]
   /// Mapping of names to an optional transform function of 1 argument.
-  public typealias UnaryFunctionMap = (String) -> UnaryFunction?
+    // public typealias UnaryFunctionMap = (String) -> UnaryFunction?
   /// Dictionary of unary function names and their implementations.
   public typealias UnaryFunctionDict = [String: UnaryFunction]
   /// Mapping of names to an optional transform function of 2 arguments
-  public typealias BinaryFunctionMap = (String) -> BinaryFunction?
+    // public typealias BinaryFunctionMap = (String) -> BinaryFunction?
   /// Dictionary of binary function names and their implementations.
   public typealias BinaryFunctionDict = [String: BinaryFunction]
   /// Return value for the ``MathParser/parseResult(_:)`` method.
@@ -75,17 +76,13 @@ final public class MathParser {
    */
   public static let defaultUnaryFunctions: UnaryFunctionDict = [
     "sin": sin, "asin": asin, "cos": cos, "acos": acos, "tan": tan, "atan": atan,
-    "sinh": sinh, "asinh": asinh, "cosh": cosh, "acosh": acosh, "tanh": tanh, "atanh": atanh,
-    "log": log10, "log10": log10, "ln": log, "loge": log, "log2": log2, "exp": exp, 
+        "log10": log10, "ln": log, "loge": log, "log2": log2, "exp": exp,
     "ceil": ceil, "floor": floor, "round": round,
     "sqrt": sqrt, "√": sqrt,
     "cbrt": cbrt, // cube root,
     "abs": abs,
     "sgn": { $0 < 0 ? -1 : $0 > 0 ? 1 : 0 },
-    "!": { factorial($0) },
-    "sec": { 1 / cos($0) },
-    "csc": { 1 / sin($0) },
-    "cot": { 1 / tan($0) }
+        "!": { factorial($0) }
   ]
 
   /**
@@ -101,55 +98,32 @@ final public class MathParser {
   public static let defaultBinaryFunctions: BinaryFunctionDict = [
     "atan2": atan2,
     "hypot": hypot,
-    "pow": pow, // Redundant since we support x^b expressions
-   "mod": { $0.truncatingRemainder(dividingBy: $1) }
+        "pow": pow // Redundant since we support x^b expressions
   ]
 
   /// Symbol/variable mapping to use during parsing and perhaps evaluation
-  public let variables: VariableMap
+    public var variables: VariableDict
   /// Function mapping to use during parsing and perhaps evaluation
-  public let unaryFunctions: UnaryFunctionMap
+    public let unaryFunctions: UnaryFunctionDict
   /// Function mapping to use during parsing and perhaps evaluation
-  public let binaryFunctions: BinaryFunctionMap
-
-  private let customVariableDict: VariableDict?
-  private let customUnaryFunctionDict: UnaryFunctionDict?
-  private let customBinaryFunctionDict: BinaryFunctionDict?
+    public let binaryFunctions: BinaryFunctionDict
 
   /**
    Construct new parser.
 
    All parameters are optional; ``MathParser`` will work as you would expect without any configuration.
 
-   - parameter variables: optional mapping of names to variables. If not given, ``defaultVariables`` will be used
-   - parameter variableDict: optional dictionary that maps a name to a constant. Note that this will be ignored if
-   ``variables`` is also given.
-   - parameter unaryFunctions: optional mapping of names to 1-ary functions. If not given, ``defaultUnaryFunctions`` will
-   be used
-   - parameter variableDict: optional dictionary that maps a name to a closure that maps a double to another.
-   Note that this will be ignored if ``unaryFunctions`` is also given.
-   - parameter binaryFunctions: optional mapping of names to 2-ary functions. If not given, ``defaultBinaryFunctions``
-   will be used
-   - parameter binaryFunctionDict: optional dictionary that maps a name to a closure that maps two doubles into one.
-   Note that this will be ignored if ``binaryFunctions`` is also given.
-   - parameter enableImpliedMultiplication: if true treat expressions like `2π` as valid and same as `2 * π`
+     - parameter variables: optional dictionary of names to variables.
+     - parameter unaryFunctions: optional dictionary of names to 1-ary functions. 
+     - parameter binaryFunctions: optional dictionary of names to 2-ary functions. 
    */
-  public init(variables: VariableMap? = nil,
-              variableDict: VariableDict? = nil,
-              unaryFunctions: UnaryFunctionMap? = nil,
-              unaryFunctionDict: UnaryFunctionDict? = nil,
-              binaryFunctions: BinaryFunctionMap? = nil,
-              binaryFunctionDict: BinaryFunctionDict? = nil,
-              enableImpliedMultiplication: Bool = false
+    public init(variables: VariableDict? = nil,
+                unaryFunctions: UnaryFunctionDict? = nil,
+                binaryFunctions: BinaryFunctionDict? = nil
   ) {
-    self.customVariableDict = variableDict
-    self.customUnaryFunctionDict = unaryFunctionDict
-    self.customBinaryFunctionDict = binaryFunctionDict
-
-    self.variables = variables ?? variableDict?.producer ?? Self.defaultVariables.producer
-    self.unaryFunctions = unaryFunctions ?? unaryFunctionDict?.producer ?? Self.defaultUnaryFunctions.producer
-    self.binaryFunctions = binaryFunctions ?? binaryFunctionDict?.producer ?? Self.defaultBinaryFunctions.producer
-    self.enableImpliedMultiplication = enableImpliedMultiplication
+        self.variables = Self.defaultVariables.appending(variables)
+        self.unaryFunctions = Self.defaultUnaryFunctions.appending(unaryFunctions)
+        self.binaryFunctions = Self.defaultBinaryFunctions.appending(binaryFunctions)
   }
 
   // MARK: -
@@ -181,7 +155,7 @@ final public class MathParser {
   public func parseResult(_ text: String) -> Result {
     do {
       let token = try expression.parse(text)
-      return .success(Evaluator(token: token, usingImpliedMultiplication: enableImpliedMultiplication))
+            return .success(Evaluator(token: token))
     } catch {
       return .failure(.parseFailure(context: "\(error)"))
     }
@@ -189,12 +163,9 @@ final public class MathParser {
 
   // MARK: - implementation details
 
-  // When true, two parsed operands in a row implies multiplication
-  private let enableImpliedMultiplication: Bool
-
   // Any of these will terminate an identifier (as well as whitespace). NOTE: this must be kept up-to-date with any
   // changes to the symbols being recognized by the parser.
-  private let identifierTerminalSymbols: Set<Character> = [
+    private let identifierTerminalSymbols: Set<String> = [
     "+",
     "-",
     "*",
@@ -204,9 +175,25 @@ final public class MathParser {
     "^",
     "(",
     ")",
-    ","
+        ",",
+        "=",
+        ">",
+        "<",
+        "==",
+        ">=",
+        "<=",
+        "&&",
+        "||"
   ]
 
+    private lazy var identifierTerminalSymbolsInitialCharacter: Set<Character> = {
+        Set(identifierTerminalSymbols.compactMap(\.first))
+    }()
+    
+    private lazy var identifierTerminalSymbolsTwoCharactersSecondCharacter: Set<Character> = {
+        Set(identifierTerminalSymbols.filter{ $0.count == 2 }.compactMap(\.last))
+    }()
+    
   /*
    Parser for a numeric constant. NOTE: we disallow signed numbers here due to ambiguities that are introduced if
    implied multiplication mode is enabled. We allow for negative values through the negation operation which demands
@@ -229,13 +216,43 @@ final public class MathParser {
 
   // Entry point for math parsing
   private lazy var expression: some TokenParser = Parse {
+        OneOf {
+            self.assignment
     self.subexpression
+        }
     End()
   }
 
+    private lazy var assignment: some TokenParser = Parse {
+        ignoreSpaces
+        identifier
+        ignoreSpaces
+        "="
+        ignoreSpaces
+        subexpression
+    }.map { [self] (identifier: Substring, token: Token) in
+        variables[String(identifier)] = Evaluator(token: token).eval(variables: variables, unaryFunctions: unaryFunctions, binaryFunctions: binaryFunctions)
+        return .variable(name: identifier)
+    }
+    
   // NOTE: the chain of expression parsers from here to exponentiation causes a loop so we need to be "lazy" here.
   private lazy var subexpression: some TokenParser = Lazy {
-    self.additionAndSubtraction
+        OneOf {
+            additionAndSubtraction
+            booleanExpression
+        }
+    }
+    
+    // TODO: how to implement && and ||
+    private lazy var booleanExpression = Parse {
+        ignoreSpaces
+        OneOf {
+            ">=".map { Token.reducer(lhs: $0, rhs: $1, op: (>=), name: ">=") }
+            "<=".map { self.multiplicationReducer }
+            "==".map { self.divisionReducer }
+            ">".map { self.divisionReducer }
+            "<".map { self.divisionReducer }
+        }
   }
 
   private lazy var additionAndSubtraction = InfixOperation(
@@ -249,8 +266,7 @@ final public class MathParser {
     name: "*|/",
     associativity: .left,
     operator: multiplicationOrDivisionOperator,
-    operand: exponentiation,
-    implied: enableImpliedMultiplication ? self.multiplicationReducer : nil
+        operand: exponentiation
   )
 
   private lazy var exponentiation = InfixOperation(
@@ -290,11 +306,28 @@ final public class MathParser {
 
   // NOTE: order is important since a function call is made up of an identifier followed by a parenthetical expression.
   private lazy var nonNegatedOperand: some TokenParser = OneOf {
+        ifexpression
     symbolOrCall
     parenthetical
     constant
   }
 
+    private lazy var ifexpression: some TokenParser = Parse {
+        "if("
+        ignoreSpaces
+        booleanExpression
+        ignoreSpaces
+        ","
+        ignoreSpaces
+        subexpression
+        ignoreSpaces
+        ","
+        ignoreSpaces
+        subexpression
+        ignoreSpaces
+        ")"
+    }
+    
   // Try to parse an identifier, if possible a one or two arg function call. NOTE: for a function call the name must
   // be immediately followed by a "(".
   private lazy var symbolOrCall: some TokenParser = Parse {
@@ -349,8 +382,8 @@ final public class MathParser {
   // This means that they can include anything else that is representable in UTF-8, including
   // emoji and other characters and symbols, including non-Latin languages.
   private lazy var identifier = Parse(input: Substring.self) {
-    Prefix(1) { !(self.identifierTerminalSymbols.contains($0) || $0.isNumber || $0.isWhitespace) }
-    Prefix { !(self.identifierTerminalSymbols.contains($0) || $0.isWhitespace) }
+        Prefix(1) { !(self.identifierTerminalSymbolsInitialCharacter.contains($0) || $0.isNumber || $0.isWhitespace) } // first letter
+        Prefix { !(self.identifierTerminalSymbolsInitialCharacter.contains($0) || self.identifierTerminalSymbolsTwoCharactersSecondCharacter.contains($0) || $0.isWhitespace) } // subsequent letters
   }.map { $0 + $1 }
 
   private lazy var parenthetical: some TokenParser = Lazy {
@@ -384,9 +417,9 @@ final public class MathParser {
     "^".map { { Token.reducer(lhs: $0, rhs: $1, op: (pow), name: "^") } }
   }
 
-  private func findVariable(name: Substring) -> Double? { self.variables(String(name)) }
-  private func findBinary(name: Substring) -> BinaryFunction? { self.binaryFunctions(String(name)) }
-  private func findUnary(name: Substring) -> UnaryFunction? { self.unaryFunctions(String(name)) }
+    private func findVariable(name: Substring) -> Double? { self.variables[String(name)] }
+    private func findBinary(name: Substring) -> BinaryFunction? { self.binaryFunctions[String(name)] }
+    private func findUnary(name: Substring) -> UnaryFunction? { self.unaryFunctions[String(name)] }
 }
 
 /// Common expression for ignoring spaces in other parsers

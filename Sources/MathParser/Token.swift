@@ -1,4 +1,5 @@
 // Copyright © 2023 Brad Howes. All rights reserved.
+// Modifed Nick Ager 2024
 
 import Foundation
 
@@ -20,6 +21,8 @@ enum Token {
   case constant(value: Double)
   /// Unresolved variable symbol
   case variable(name: Substring)
+    /// Boolean value from parse
+    case boolean(value: Bool)
   /// Unresolved 1-arg function call
   indirect case unaryCall(op: MathParser.UnaryFunction?, name: Substring, arg: Token)
   /// Unresolved 2-arg function call
@@ -46,12 +49,6 @@ extension Token {
     case .variable(let name):
       // Resolved variable, return value
       if let value = state.findVariable(name: name) { return value }
-      // Attempt to convert name into combination of multiplications
-      if state.usingImpliedMultiplication,
-         let result = splitIdentifier(name, state: state),
-         result.remaining.isEmpty {
-        return try result.token.eval(state: state)
-      }
       throw MathParserError.variableNotFound(name: name)
 
     case let .unaryCall(op, name, arg):
@@ -59,11 +56,6 @@ extension Token {
       if let op = op { return op(try arg.eval(state: state)) }
       // Resolved function, call on evaluated argument
       if let op = state.findUnary(name: name) { return op(try arg.eval(state: state)) }
-      // Attempt to convert name into combination of multiplications and perhaps a function call.
-      if state.usingImpliedMultiplication,
-         let token = splitUnaryIdentifier(name, arg: arg, state: state) {
-        return try token.eval(state: state)
-      }
       throw MathParserError.unaryFunctionNotFound(name: name)
 
     case let .binaryCall(op, name, arg1, arg2):
