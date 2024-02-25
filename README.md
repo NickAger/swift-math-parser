@@ -13,6 +13,8 @@ Changes:
 * Added as assignment operator `=` to set custom variables
 * Started work to add `if` and bollean logic to the parser (not complete)
 
+In the end the package wasn't used in the project I intended it for - I found modifying to add boolean logic was not straightforward and abandond the attempt. Instead it was relatively straightfoward to directly use Point•Free's [swift-parsing package](https://github.com/pointfreeco/swift-parsing) to build an expression parser that matched the requirements of the project. However this project was useful for test cases and to gain some understanding of Point•Free's [swift-parsing package](https://github.com/pointfreeco/swift-parsing).
+
 
 # swift-math-parser
 
